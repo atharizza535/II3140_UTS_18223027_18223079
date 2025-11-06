@@ -1,31 +1,31 @@
-'use client'
-import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useParams } from 'next/navigation'
-import ReactMarkdown from 'react-markdown'
 
-export default function WikiSlugPage() {
-  const { slug } = useParams<{ slug: string }>()
-  const [page, setPage] = useState<any>(null)
+// ✅ Tell Next which pages to statically export
+export async function generateStaticParams() {
+  const { data } = await supabase.from('wiki_pages').select('slug')
+  return (data || []).map((page) => ({ slug: page.slug }))
+}
 
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from('wiki_pages')
-        .select('*')
-        .eq('slug', slug)
-        .single()
-      setPage(data)
-    }
-    load()
-  }, [slug])
+// ✅ Normal page component
+export default async function WikiSlugPage({ params }: { params: { slug: string } }) {
+  const { data } = await supabase
+    .from('wiki_pages')
+    .select('*')
+    .eq('slug', params.slug)
+    .single()
 
-  if (!page) return <p className="p-6">Loading...</p>
+  if (!data) {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">404 - Page Not Found</h1>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-6 prose max-w-none">
-      <h1>{page.title}</h1>
-      <ReactMarkdown>{page.content}</ReactMarkdown>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">{data.title}</h1>
+      <div className="mt-4 whitespace-pre-wrap">{data.content}</div>
     </div>
   )
 }
