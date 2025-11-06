@@ -1,0 +1,27 @@
+.terminal {
+  width: 80%;
+  max-width: 600px;
+  background: #111;
+  color: #0f0;
+  font-family: monospace;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.terminal-header {
+  background: #333;
+  padding: 8px 12px;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+.terminal-body {
+  padding: 10px;
+  height: 400px;
+  overflow-y: auto;
+}
+.terminal-body input {
+  background: transparent;
+  border: none;
+  color: #0f0;
+  outline: none;
+  width: 80%;
+}
