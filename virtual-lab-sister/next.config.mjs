@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // needed for Netlify static hosting
+  reactStrictMode: true,
   experimental: {
     serverActions: undefined, // remove or comment out
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
+
