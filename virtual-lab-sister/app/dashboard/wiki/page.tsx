@@ -1,41 +1,25 @@
 'use client'
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabaseClient'
-
-// Dynamically import WikiEditor to disable SSR
-const WikiEditor = dynamic(() => import('@/components/WikiEditor'), {
-  ssr: false,
-  loading: () => <p>Loading editor...</p>,
-})
+import ReactMarkdown from 'react-markdown'
 
 export default function WikiPage() {
-  const [page, setPage] = useState<any>({ title: '', content: '' })
+  const [page, setPage] = useState<any>(null)
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('wiki_pages')
-        .select('*')
-        .eq('slug', 'main')
-        .single()
+      const { data } = await supabase.from('wiki_pages').select('*').eq('slug', 'main').single()
       if (data) setPage(data)
     }
     load()
   }, [])
 
-  async function savePage(content: string) {
-    await supabase.from('wiki_pages').upsert({
-      slug: 'main',
-      title: 'Main Wiki',
-      content,
-    })
-  }
+  if (!page) return <p>Loading...</p>
 
   return (
-    <div className="space-y-3">
-      <h1 className="text-xl font-semibold">{page.title || 'Main Wiki'}</h1>
-      <WikiEditor initialValue={page.content} onSave={savePage} />
+    <div className="prose max-w-none p-4">
+      <h1>{page.title}</h1>
+      <ReactMarkdown>{page.content || '*No content yet.*'}</ReactMarkdown>
     </div>
   )
 }
