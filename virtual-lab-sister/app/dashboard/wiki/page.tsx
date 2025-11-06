@@ -1,14 +1,24 @@
 'use client'
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabaseClient'
-import WikiEditor from '@/components/WikiEditor'
+
+// Dynamically import WikiEditor to disable SSR
+const WikiEditor = dynamic(() => import('@/components/WikiEditor'), {
+  ssr: false,
+  loading: () => <p>Loading editor...</p>,
+})
 
 export default function WikiPage() {
   const [page, setPage] = useState<any>({ title: '', content: '' })
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('wiki_pages').select('*').eq('slug', 'main').single()
+      const { data } = await supabase
+        .from('wiki_pages')
+        .select('*')
+        .eq('slug', 'main')
+        .single()
       if (data) setPage(data)
     }
     load()
