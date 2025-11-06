@@ -1,51 +1,75 @@
 'use client'
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { useState } from 'react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<string | null>(null)
-  const router = useRouter()
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  async function signInWithEmail() {
-    setStatus('Sending magic link...')
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    // Send magic link
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`, // ✅ Ensure redirect target
       },
     })
 
+    setLoading(false)
+
     if (error) {
-      console.error(error)
-      setStatus(`Error: ${error.message}`)
+      console.error('Login error:', error.message)
+      setError(error.message)
     } else {
-      setStatus('Check your email for the login link!')
+      setSent(true)
     }
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4">
-      <h1 className="text-2xl font-bold">Login</h1>
-
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Enter your email"
-        className="border rounded px-3 py-2 w-64"
-      />
-
-      <button
-        className="px-4 py-2 bg-blue-600 text-white rounded"
-        onClick={signInWithEmail}
+    <main className="flex min-h-screen items-center justify-center bg-gray-50">
+      <form
+        onSubmit={handleLogin}
+        className="bg-white p-6 rounded-xl shadow-md w-80"
       >
-        Send Magic Link
-      </button>
+        <h2 className="text-lg font-semibold mb-2">Login</h2>
+        <p className="text-sm text-gray-600 mb-4">Sign in via magic link</p>
 
-      {status && <p className="text-sm mt-2">{status}</p>}
-    </div>
+        {sent ? (
+          <p className="text-green-600 text-sm">
+            ✅ Check your email for the login link!
+          </p>
+        ) : (
+          <>
+            <input
+              type="email"
+              className="border w-full p-2 rounded mb-3"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Send link'}
+            </button>
+
+            {error && (
+              <p className="text-red-500 text-sm mt-2">
+                ⚠ {error}
+              </p>
+            )}
+          </>
+        )}
+      </form>
+    </main>
   )
 }
