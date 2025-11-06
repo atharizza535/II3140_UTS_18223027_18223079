@@ -1,11 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  output: 'export', // ✅ replaces "next export"
+  distDir: 'out',   // ✅ export output folder
+  images: { unoptimized: true },
   experimental: {
-    appDir: true,
-  },
-  images: {
-    domains: ['avatars.githubusercontent.com', 'lh3.googleusercontent.com'],
+    serverActions: true,
   },
 }
 
