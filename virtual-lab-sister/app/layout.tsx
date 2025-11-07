@@ -1,44 +1,34 @@
 // app/layout.tsx
-'use client'; // Pastikan ini ada jika menggunakan hooks seperti useState
+'use client' // Tambahkan ini di baris paling atas
 
-import { Inter } from 'next/font/google';
+import { useState } from 'react' // Impor useState
 import '../styles/globals.css'
-import { useState, useEffect } from 'react';
-import SplashScreen from '@/components/SplashScreen'; // Pastikan path benar
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import SplashScreen from '@/components/SplashScreen' // Impor splash screen
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'] })
+
+// Hapus 'export const metadata' jika menggunakan 'use client'
+// Atau pisahkan ke file template.tsx
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  const [showSplash, setShowSplash] = useState(true);
-
-  // Jika Anda ingin splash screen hanya muncul sekali saat aplikasi dimuat
-  useEffect(() => {
-    // Anda bisa menyimpan di localStorage agar tidak muncul setiap kali user refresh
-    const hasSeenSplash = localStorage.getItem('hasSeenSplash');
-    if (hasSeenSplash) {
-      setShowSplash(false);
-    }
-  }, []);
-
-  const handleSplashFinish = () => {
-    setShowSplash(false);
-    localStorage.setItem('hasSeenSplash', 'true'); // Tandai bahwa splash sudah dilihat
-  };
+  const [isLoading, setIsLoading] = useState(true)
 
   return (
     <html lang="en">
+      <head />
       <body className={inter.className}>
-        {showSplash ? (
-          <SplashScreen onFinish={handleSplashFinish} />
+        {isLoading ? (
+          <SplashScreen onFinish={() => setIsLoading(false)} />
         ) : (
-          children // Render konten aplikasi setelah splash screen selesai
+          children // Tampilkan konten utama setelah splash selesai
         )}
       </body>
     </html>
-  );
-  
+  )
 }
