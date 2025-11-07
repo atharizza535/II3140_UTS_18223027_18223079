@@ -1,4 +1,4 @@
-// virtual-lab-sister/app/api/tasks/submit/route.ts
+// app/api/tasks/submit/route.ts
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server'
@@ -6,65 +6,112 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer'
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const { taskId, file_url } = body
+    // Parse the multipart form data
+    const formData = await req.formData()
+    const taskId = formData.get('taskId') as string
+    const file = formData.get('file') as File | null
 
-    if (!taskId || !file_url) {
+    console.log('📝 Submit Task - Received:', { taskId, hasFile: !!file, fileName: file?.name })
+
+    if (!taskId) {
       return NextResponse.json(
-        { error: 'Task ID and file_url are required' },
+        { error: 'Task ID is required' },
         { status: 400 }
       )
     }
 
+    if (!file) {
+      return NextResponse.json(
+        { error: 'File is required' },
+        { status: 400 }
+      )
+    }
+
+    // Create server-side Supabase client (uses cookies automatically)
     const supabase = await createServerSupabaseClient()
 
     // 1. Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
+    console.log('🔐 Auth check:', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      email: user?.email,
+      authError: authError?.message 
+    })
+
     if (authError || !user) {
-      console.error('Auth error:', authError)
+      console.error('❌ Auth error:', authError)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Please login again' },
         { status: 401 }
       )
     }
 
-    // 2. Securely update the task
-    // This runs on the server and bypasses client-side RLS
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({
-        status: 'done', // Set status to 'done'
-        file_url: file_url  // Save the file path
-      })
-      .eq('id', taskId) // For the specific task
-      // Optionally, you could also add .eq('assignee_id', user.id)
-      // if you had an 'assignee_id' column to be even more secure.
-      .select()
-      .single()
+    // 2. Upload file to Supabase Storage
+    const fileName = `${user.id}/${Date.now()}_${file.name}`
+    
+    console.log('📤 Uploading file:', fileName)
 
-    if (error) {
-      console.error('Task update error:', error)
-      // This is likely the error you were seeing,
-      // but it was happening silently on the client.
-      if (error.code === '42501') {
-         return NextResponse.json(
-          { error: 'Permission denied to update task', details: error.message },
-          { status: 403 }
-        )
-      }
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('task-files')
+      .upload(fileName, file, {
+        contentType: file.type,
+        upsert: false
+      })
+
+    if (uploadError) {
+      console.error('❌ Upload error:', uploadError)
       return NextResponse.json(
-        { error: 'Failed to update task', details: error.message },
+        { error: 'Failed to upload file', details: uploadError.message },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ success: true, data })
+    console.log('✅ File uploaded:', uploadData.path)
 
-  } catch (err) {
-    console.error('Unexpected error:', err)
+    // 3. Update the task in database (server-side bypasses RLS)
+    const { data: taskData, error: updateError } = await supabase
+      .from('tasks')
+      .update({
+        status: 'done',
+        file_url: uploadData.path
+      })
+      .eq('id', taskId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('❌ Task update error:', updateError)
+      
+      // Clean up uploaded file if task update fails
+      await supabase.storage.from('task-files').remove([fileName])
+      
+      if (updateError.code === '42501') {
+        return NextResponse.json(
+          { error: 'Permission denied to update task' },
+          { status: 403 }
+        )
+      }
+      
+      return NextResponse.json(
+        { error: 'Failed to update task', details: updateError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ Task updated successfully:', taskData.id)
+
+    return NextResponse.json({ 
+      success: true, 
+      data: taskData,
+      fileUrl: uploadData.path
+    })
+
+  } catch (err: any) {
+    console.error('💥 Unexpected error:', err)
     return NextResponse.json(
-      { error: 'Server error' },
+      { error: 'Server error', details: err.message },
       { status: 500 }
     )
   }

@@ -1,6 +1,5 @@
 'use client'
 import { useState, useRef } from 'react'
-import { supabase } from '@/lib/supabaseClient'
 
 const priorityColors: { [key: string]: string } = {
   High: 'bg-red-100 text-red-700',
@@ -37,9 +36,11 @@ const formatRemainingDays = (dateString: string) => {
 export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTaskUpdate: () => void }) {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleUploadClick = () => {
+    setError(null)
     fileInputRef.current?.click()
   }
 
@@ -49,49 +50,46 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
 
     setIsUploading(true)
     setError(null)
+    setUploadProgress('Mempersiapkan upload...')
 
     try {
-      // Step 1: Get the current session to ensure user is authenticated
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        throw new Error('Tidak dapat memverifikasi autentikasi. Silakan login kembali.')
-      }
+      console.log('📤 Starting upload for file:', file.name)
 
-      // Step 2: Upload the file to Supabase Storage
-      const { data: fileData, error: fileError } = await supabase.storage
-        .from('task-files')
-        .upload(`${task.created_by || 'unknown'}/${Date.now()}_${file.name}`, file)
+      // Create FormData and append file + taskId
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('taskId', task.id)
 
-      if (fileError) throw fileError
+      setUploadProgress('Mengunggah file...')
 
-      // Step 3: Call the secure API endpoint with authentication
-      // The cookies are automatically sent, but we can also verify the session exists
+      // Send to API endpoint
       const response = await fetch('/api/tasks/submit', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Ensure cookies are sent
-        body: JSON.stringify({
-          taskId: task.id,
-          file_url: fileData.path
-        })
+        credentials: 'include', // Include cookies for auth
+        body: formData, // Don't set Content-Type, browser will set it with boundary
       })
 
+      const data = await response.json()
+
+      console.log('📥 Response:', { status: response.status, data })
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Gagal mengupdate status tugas')
+        throw new Error(data.error || data.details || 'Upload gagal')
       }
 
-      // Step 4: Success - refresh the task list
-      onTaskUpdate()
+      setUploadProgress('Berhasil! Memuat ulang...')
+      
+      // Success! Refresh the task list
+      setTimeout(() => {
+        onTaskUpdate()
+        setUploadProgress('')
+      }, 500)
 
     } catch (error: any) {
       const msg = error?.message ?? String(error)
-      console.error('Error uploading file and updating task:', msg)
+      console.error('❌ Upload error:', msg)
       setError(msg)
-      alert('Gagal mengunggah file: ' + msg)
+      setUploadProgress('')
     } finally {
       setIsUploading(false)
       // Reset file input
@@ -101,6 +99,7 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
     }
   }
 
+  // Generate public URL for viewing uploaded file
   const filePublicUrl = task.file_url 
     ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/task-files/${task.file_url}`
     : null
@@ -115,6 +114,7 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200 space-y-3">
+      {/* Header with title and priority */}
       <div className="flex justify-between items-start">
         <h3 className="font-semibold text-gray-800">{title}</h3>
         <span
@@ -126,12 +126,15 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
         </span>
       </div>
 
+      {/* Description */}
       <p className="text-sm text-gray-600 line-clamp-2">{description}</p>
 
-      <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">
+      {/* Course tag */}
+      <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full inline-block">
         {course}
       </span>
 
+      {/* Assignee and deadline */}
       <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t">
         <span className="truncate pr-2">{assignee}</span>
         {deadline && (
@@ -142,9 +145,18 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
       {/* Error message */}
       {error && (
         <div className="pt-2">
-          <p className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-            {error}
-          </p>
+          <div className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded border border-red-200">
+            <strong>Error:</strong> {error}
+          </div>
+        </div>
+      )}
+
+      {/* Upload progress */}
+      {uploadProgress && (
+        <div className="pt-2">
+          <div className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded border border-blue-200">
+            {uploadProgress}
+          </div>
         </div>
       )}
 
@@ -157,13 +169,24 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
             onChange={handleFileChange}
             className="hidden"
             disabled={isUploading}
+            accept="*/*"
           />
           <button
             onClick={handleUploadClick}
             disabled={isUploading}
-            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
-            {isUploading ? 'Mengunggah...' : 'Upload File Tugas'}
+            {isUploading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>Mengunggah...</span>
+              </>
+            ) : (
+              <>
+                <span>📎</span>
+                <span>Upload File Tugas</span>
+              </>
+            )}
           </button>
         </div>
       )}
@@ -177,8 +200,17 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
             rel="noopener noreferrer"
             className="w-full text-center block px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold text-sm hover:bg-green-200 transition-colors"
           >
-            ✓ Lihat File
+            ✓ Lihat File yang Diupload
           </a>
+        </div>
+      )}
+
+      {/* Status indicator for done tasks without file */}
+      {task.status === 'done' && !filePublicUrl && (
+        <div className="pt-3 border-t">
+          <div className="text-center text-xs text-green-700 bg-green-50 px-3 py-2 rounded">
+            ✓ Tugas selesai (tidak ada file)
+          </div>
         </div>
       )}
     </div>
