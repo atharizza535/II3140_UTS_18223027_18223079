@@ -29,27 +29,35 @@ export default function LoginPage() {
     console.log('🔐 Login attempt for:', email)
 
     try {
-      // Get the current origin
-      const origin = window.location.origin
+      // Get the current origin - handle both development and production
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
       const redirectUrl = `${origin}/auth/callback`
 
       console.log('📍 Redirect URL:', redirectUrl)
+      console.log('📍 Current URL:', window.location.href)
 
-      // Send magic link
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
+      // Send magic link with explicit redirect
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
         options: {
           emailRedirectTo: redirectUrl,
+          shouldCreateUser: true,
         },
+      })
+
+      console.log('📧 OTP Response:', { 
+        data, 
+        error: error?.message,
+        session: data?.session
       })
 
       setLoading(false)
 
       if (error) {
-        console.error('❌ Login error:', error.message)
+        console.error('❌ Login error:', error)
         setError(error.message)
       } else {
-        console.log('✅ Magic link sent successfully')
+        console.log('✅ Magic link sent successfully to:', email)
         setSent(true)
       }
     } catch (err: any) {

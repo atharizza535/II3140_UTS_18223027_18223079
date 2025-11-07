@@ -16,13 +16,21 @@ export default function NotificationBell() {
 
   const fetchNotifications = async () => {
     try {
+      console.log('🔔 Fetching notifications...')
       const response = await fetch('/api/notifications')
+      
+      console.log('Response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ Notifications fetched:', data)
         setNotifications(data.notifications || [])
+      } else {
+        const errorData = await response.json()
+        console.error('❌ Failed to fetch notifications:', errorData)
       }
     } catch (err) {
-      console.error('Failed to fetch notifications:', err)
+      console.error('💥 Error fetching notifications:', err)
     }
   }
 
@@ -42,11 +50,14 @@ export default function NotificationBell() {
           schema: 'public',
           table: 'notifications',
         },
-        () => {
+        (payload) => {
+          console.log('🔔 New notification received:', payload)
           fetchNotifications()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('📡 Realtime subscription status:', status)
+      })
 
     return () => {
       clearInterval(interval)
@@ -99,7 +110,7 @@ export default function NotificationBell() {
       >
         🔔
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -113,8 +124,8 @@ export default function NotificationBell() {
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown */}
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg z-40 max-h-96 overflow-hidden flex flex-col">
+          {/* Dropdown - positioned to the left to avoid cutoff */}
+          <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-40 max-h-96 overflow-hidden flex flex-col">
             <div className="p-3 border-b flex justify-between items-center bg-gray-50">
               <h3 className="font-semibold text-gray-900">Notifikasi</h3>
               {unreadCount > 0 && (

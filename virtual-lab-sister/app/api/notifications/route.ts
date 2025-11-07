@@ -21,7 +21,7 @@ export async function GET() {
     // Get unread notifications for this user
     const { data, error } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, message, created_at, is_read')
       .eq('user_id', user.id)
       .eq('is_read', false)
       .order('created_at', { ascending: false })
@@ -35,7 +35,16 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json({ notifications: data || [] })
+    console.log('✅ Fetched notifications:', { 
+      userId: user.id, 
+      count: data?.length || 0 
+    })
+
+    return NextResponse.json({ 
+      notifications: data || [],
+      count: data?.length || 0,
+      userId: user.id
+    })
   } catch (err) {
     console.error('Unexpected error:', err)
     return NextResponse.json(
