@@ -1,32 +1,55 @@
+// app/api/ctf/submit/route.ts
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
-import { createServerSupabaseClient } from '@/lib/supabaseServer'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { id, flag } = body
+    const { id, flag, accessToken } = body
     
-    console.log('🔍 CTF Submit - Request:', { id, flagLength: flag?.length })
+    console.log('🔍 CTF Submit - Request:', { 
+      id, 
+      flagLength: flag?.length,
+      hasToken: !!accessToken 
+    })
     
     if (!id || !flag) {
-      console.error('❌ Missing required fields')
       return NextResponse.json(
         { error: 'Missing required fields: id and flag are required' }, 
         { status: 400 }
       )
     }
     
-    const supabase = await createServerSupabaseClient()
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'No access token provided' }, 
+        { status: 401 }
+      )
+    }
     
-    // Check authentication
+    // Create Supabase client with access token
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      }
+    )
+    
+    // Verify user with the token
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     console.log('🔐 Auth check:', { 
       hasUser: !!user, 
       userId: user?.id,
+      email: user?.email,
       authError: authError?.message 
     })
     
@@ -35,7 +58,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { 
           error: 'Unauthorized - Please login again',
-          details: 'Authentication failed or session expired'
+          details: authError?.message
         }, 
         { status: 401 }
       )
@@ -71,7 +94,11 @@ export async function POST(req: Request) {
 
     // Compare hashes
     const correct = chall.flag_hash === hash
-    console.log('✅ Flag check:', { correct, expectedHash: chall.flag_hash.substring(0, 16) + '...' })
+    console.log('✅ Flag check:', { 
+      correct, 
+      submittedHash: hash.substring(0, 16) + '...',
+      expectedHash: chall.flag_hash.substring(0, 16) + '...' 
+    })
 
     // Record submission
     const { error: insertError } = await supabase
@@ -91,7 +118,6 @@ export async function POST(req: Request) {
     if (insertError) {
       console.error('❌ Insert error:', insertError)
       
-      // Check if it's a permission error
       if (insertError.code === '42501') {
         return NextResponse.json(
           { 

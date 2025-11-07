@@ -164,7 +164,7 @@ export default function CTFPage() {
     setError(null)
     
     try {
-      // Check authentication first
+      // Get session with access token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
       setDebugInfo((prev: any) => ({
@@ -172,13 +172,14 @@ export default function CTFPage() {
         submit: {
           step: 'auth_check',
           hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
           sessionError: sessionError?.message,
           challengeId,
           flagLength: flag.length
         }
       }))
 
-      if (sessionError || !session) {
+      if (sessionError || !session?.access_token) {
         setError({
           status: 401,
           message: 'You must be logged in to submit flags',
@@ -196,37 +197,7 @@ export default function CTFPage() {
         return
       }
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-      setDebugInfo((prev: any) => ({
-        ...prev,
-        submit: {
-          ...prev.submit,
-          step: 'get_user',
-          userId: user?.id,
-          userError: userError?.message
-        }
-      }))
-
-      if (userError || !user) {
-        setError({
-          status: 401,
-          message: 'Could not verify user identity',
-          details: userError
-        })
-        setResults({
-          ...results,
-          [challengeId]: {
-            correct: false,
-            message: '🔒 User verification failed',
-            status: 401
-          }
-        })
-        setSubmitting(null)
-        return
-      }
-
-      // Make API request
+      // Make API request with access token
       const response = await fetch('/api/ctf/submit', {
         method: 'POST',
         headers: { 
@@ -234,7 +205,8 @@ export default function CTFPage() {
         },
         body: JSON.stringify({ 
           id: challengeId, 
-          flag: flag 
+          flag: flag,
+          accessToken: session.access_token // KIRIM TOKEN
         })
       })
 
@@ -297,11 +269,9 @@ export default function CTFPage() {
           }
         })
 
-        // Clear input and reload challenges
         setFlagInputs({ ...flagInputs, [challengeId]: '' })
         setTimeout(() => {
           loadChallenges()
-          // Clear success message after showing solved status
           setTimeout(() => {
             setResults(prev => {
               const newResults = { ...prev }
