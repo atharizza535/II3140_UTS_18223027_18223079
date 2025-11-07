@@ -2,7 +2,7 @@
 'use client'; // Pastikan ini ada jika menggunakan hooks seperti useState
 
 import { Inter } from 'next/font/google';
-import './globals.css';
+import '../styles/globals.css'
 import { useState, useEffect } from 'react';
 import SplashScreen from '@/components/SplashScreen'; // Pastikan path benar
 
