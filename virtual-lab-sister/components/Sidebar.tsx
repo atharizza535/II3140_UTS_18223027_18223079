@@ -48,7 +48,7 @@ export default function Sidebar() {
           onClick={async () => {
             const { supabase } = await import('@/lib/supabaseClient')
             await supabase.auth.signOut()
-            window.location.href = '/auth/login'
+            window.location.href = '/'
           }}
           className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
         >

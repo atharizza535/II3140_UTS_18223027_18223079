@@ -7,7 +7,6 @@ export default function Home() {
       <p className="text-gray-600">A unified assistant platform for tasks, wiki, and experiments.</p>
       <div className="space-x-4">
         <Link href="/auth/login" className="px-4 py-2 bg-indigo-600 text-white rounded-xl">Login</Link>
-        <Link href="/virtual-lab" className="px-4 py-2 bg-gray-200 rounded-xl">Try Virtual Lab</Link>
       </div>
     </main>
   )
