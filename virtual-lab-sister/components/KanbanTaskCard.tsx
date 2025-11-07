@@ -67,6 +67,12 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
       // Get session with access token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
+      console.log('🔍 Session check:', {
+        hasSession: !!session,
+        hasAccessToken: !!session?.access_token,
+        sessionError: sessionError?.message
+      })
+
       if (sessionError || !session?.access_token) {
         throw new Error('You must be logged in to submit. Please login again.')
       }
@@ -79,16 +85,33 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
 
       setUploadProgress('Mengunggah file...')
 
+      console.log('📡 Sending request to /api/tasks/submit')
+
       // Send to API endpoint
       const response = await fetch('/api/tasks/submit', {
         method: 'POST',
         body: formData,
       })
 
+      console.log('📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
       const data = await response.json()
 
+      console.log('📦 Response data:', data)
+
       if (!response.ok) {
-        throw new Error(data.error || data.details || 'Upload gagal')
+        const errorMsg = [
+          data.error || 'Upload gagal',
+          data.details ? `Details: ${data.details}` : '',
+          data.code ? `Code: ${data.code}` : '',
+          data.hint ? `Hint: ${data.hint}` : ''
+        ].filter(Boolean).join('\n')
+        
+        throw new Error(errorMsg)
       }
 
       setUploadProgress('Berhasil! Memuat ulang...')
@@ -102,6 +125,7 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
     } catch (error: any) {
       const msg = error?.message ?? String(error)
       console.error('❌ Upload error:', msg)
+      console.error('❌ Full error object:', error)
       setError(msg)
       setUploadProgress('')
     } finally {

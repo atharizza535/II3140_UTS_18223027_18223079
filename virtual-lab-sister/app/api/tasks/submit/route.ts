@@ -5,19 +5,22 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
+  console.log('🚀 ========== TASK SUBMIT DEBUG START ==========')
+  
   try {
     const formData = await req.formData()
     const taskId = formData.get('taskId') as string
     const file = formData.get('file') as File | null
     const accessToken = formData.get('accessToken') as string
 
-    console.log('📝 Submit Task Request:', { 
-      taskId, 
-      hasFile: !!file, 
-      fileName: file?.name,
-      fileSize: file?.size,
-      hasToken: !!accessToken 
-    })
+    console.log('📝 Step 1: Request Data Received')
+    console.log('  - Task ID:', taskId)
+    console.log('  - Has File:', !!file)
+    console.log('  - File Name:', file?.name)
+    console.log('  - File Size:', file?.size, 'bytes')
+    console.log('  - File Type:', file?.type)
+    console.log('  - Has Token:', !!accessToken)
+    console.log('  - Token Preview:', accessToken ? accessToken.substring(0, 20) + '...' : 'null')
 
     if (!taskId || !file || !accessToken) {
       return NextResponse.json(
