@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
 const priorityColors: { [key: string]: string } = {
   High: 'bg-red-100 text-red-700',
@@ -55,18 +56,33 @@ export default function KanbanTaskCard({ task, onTaskUpdate }: { task: any, onTa
     try {
       console.log('📤 Starting upload for file:', file.name)
 
-      // Create FormData and append file + taskId
+      // Get session with access token (SAME AS CTF!)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      console.log('🔍 Session check:', { 
+        hasSession: !!session,
+        hasAccessToken: !!session?.access_token,
+        sessionError: sessionError?.message,
+        taskId: task.id,
+        fileName: file.name
+      })
+
+      if (sessionError || !session?.access_token) {
+        throw new Error('You must be logged in to submit. Please login again.')
+      }
+
+      // Create FormData and append file + taskId + accessToken
       const formData = new FormData()
       formData.append('file', file)
       formData.append('taskId', task.id)
+      formData.append('accessToken', session.access_token) // PASS TOKEN LIKE CTF!
 
       setUploadProgress('Mengunggah file...')
 
       // Send to API endpoint
       const response = await fetch('/api/tasks/submit', {
         method: 'POST',
-        credentials: 'include', // Include cookies for auth
-        body: formData, // Don't set Content-Type, browser will set it with boundary
+        body: formData, // FormData automatically sets correct Content-Type
       })
 
       const data = await response.json()
