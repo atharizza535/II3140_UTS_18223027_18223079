@@ -1,51 +1,45 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import { useRealtime } from '@/lib/useRealtime'
+import KanbanTaskCard from '@/components/KanbanTaskCard' 
 
-const STATUSES = ['todo', 'in_progress', 'done']
 
-export default function Kanban() {
-  const [tasks, setTasks] = useState<any[]>([])
+const STATUSES = [
+  { id: 'todo', title: 'To-Do' },
+  { id: 'done', title: 'Done' }
+]
 
-  async function load() {
-    const { data } = await supabase.from('tasks').select('*')
-    setTasks(data || [])
-  }
-  useEffect(() => { load() }, [])
-  useRealtime('tasks', load)
-
-  async function moveTask(id: string, status: string) {
-    await supabase.from('tasks').update({ status }).eq('id', id)
-  }
-
+export default function Kanban({ tasks, onTaskUpdate }: { tasks: any[], onTaskUpdate: () => void }) {
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {STATUSES.map(status => (
-        <div key={status} className="bg-gray-50 rounded-lg p-3 border">
-          <h3 className="font-semibold capitalize mb-2">{status.replace('_', ' ')}</h3>
-          <div className="space-y-2 min-h-[200px]">
-            {tasks
-              .filter(t => t.status === status)
-              .map(t => (
-                <div
-                  key={t.id}
-                  draggable
-                  onDragStart={e => e.dataTransfer.setData('id', t.id)}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => {
-                    e.preventDefault()
-                    moveTask(e.dataTransfer.getData('id'), status)
-                  }}
-                  className="bg-white p-3 rounded shadow cursor-move"
-                >
-                  <p className="font-medium">{t.title}</p>
-                  <p className="text-xs text-gray-500">{t.description}</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {STATUSES.map(status => {
+        const tasksInColumn = tasks.filter(t => t.status === status.id)
+        
+        return (
+          <div key={status.id} className="bg-gray-50 rounded-lg p-4 border">
+            <h3 className="font-semibold text-gray-700 mb-4 flex items-center">
+              {status.title}
+              <span className="ml-2 bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                {tasksInColumn.length}
+              </span>
+            </h3>
+            
+            <div className="space-y-4">
+              {tasksInColumn.length > 0 ? (
+                tasksInColumn.map(task => (
+                  <KanbanTaskCard
+                    key={task.id}
+                    task={task}
+                    onTaskUpdate={onTaskUpdate} 
+                  />
+                ))
+              ) : (
+                <div className="text-center text-sm text-gray-500 py-10">
+                  <p>Tidak ada tugas di sini.</p>
                 </div>
-              ))}
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

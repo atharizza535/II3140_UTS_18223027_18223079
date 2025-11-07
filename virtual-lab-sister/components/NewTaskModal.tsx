@@ -1,11 +1,11 @@
 'use client'
 import { useState } from 'react'
 
-
 interface NewTaskModalProps {
   onClose: () => void
-  onSubmit: (formData: FormData) => void // Kita gunakan FormData untuk file upload
+  onSubmit: (formData: FormData) => Promise<void>
 }
+
 
 const courses = [
   "Jaringan Komputer",
@@ -19,43 +19,33 @@ const courses = [
 export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
   const [loading, setLoading] = useState(false)
 
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setLoading(true)
-    
     const formData = new FormData(event.currentTarget)
-    
-
-    console.log("Form data to be submitted:")
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value)
-    }
+    await onSubmit(formData) 
     setLoading(false)
-
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 relative">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"
+          disabled={loading}
+        >
+          &times;
+        </button>
+
         <form onSubmit={handleSubmit}>
-          <div className="flex justify-between items-center p-4 border-b">
-            <div>
-              <h2 className="text-xl font-semibold">Tambah Tugas Baru</h2>
-              <p className="text-sm text-gray-500">Buat tugas baru untuk asisten lab</p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
-              disabled={loading}
-            >
-              &times;
-            </button>
+          <div className="p-6 border-b">
+            <h2 className="text-xl font-semibold">Tambah Tugas Baru</h2>
+            <p className="text-sm text-gray-500">Buat tugas baru untuk asisten lab</p>
           </div>
 
-
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
                 Judul Tugas
@@ -65,11 +55,10 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
                 name="title"
                 id="title"
                 placeholder="Masukkan judul tugas"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 required
               />
             </div>
-
 
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -80,7 +69,7 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
                 id="description"
                 rows={3}
                 placeholder="Deskripsi tugas"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
 
@@ -91,8 +80,9 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
               <select
                 name="course"
                 id="course"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white"
                 defaultValue=""
+                required
               >
                 <option value="" disabled>Pilih mata kuliah</option>
                 {courses.map(course => (
@@ -100,7 +90,6 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
                 ))}
               </select>
             </div>
-
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -110,13 +99,14 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
                 <select
                   name="assignee"
                   id="assignee"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white"
                   defaultValue=""
                 >
                   <option value="" disabled>Pilih asisten</option>
-                  <option value="1">Andi Wijaya</option>
-                  <option value="2">Budi Santoso</option>
-                  <option value="3">Citra Dewi</option>
+                  <option value="Rafli Dwi Nugraha">Rafli Dwi Nugraha</option>
+                  <option value="Brandon Theodore Ferrinov">Brandon Theodore Ferrinov</option>
+                  <option value="Aldoy Fauzan Avanza">Aldoy Fauzan Avanza</option>
+                  <option value="Wisyendra Lunarmalam">Wisyendra Lunarmalam</option>
                 </select>
               </div>
               <div>
@@ -126,12 +116,12 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
                 <select
                   name="priority"
                   id="priority"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
-                  defaultValue="medium"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white"
+                  defaultValue="Medium"
                 >
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
                 </select>
               </div>
             </div>
@@ -145,26 +135,13 @@ export default function NewTaskModal({ onClose, onSubmit }: NewTaskModalProps) {
                 type="date"
                 name="deadline"
                 id="deadline"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            </div>
-
-
-            <div>
-              <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-1">
-                Upload File Tugas (Opsional)
-              </label>
-              <input
-                type="file"
-                name="file"
-                id="file"
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
               />
             </div>
           </div>
 
 
-          <div className="p-4 bg-gray-50 border-t text-right">
+          <div className="p-6 bg-gray-50 border-t flex justify-end">
             <button
               type="submit"
               disabled={loading}

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import ErrorDisplay from '@/components/ErrorDisplay'
 import SuccessDisplay from '@/components/SuccessDisplay'
@@ -13,13 +13,25 @@ interface ErrorState {
   details?: any
 }
 
+const courses = [
+  "Jaringan Komputer",
+  "Sistem Operasi",
+  "Sistem dan Arsitektur Komputer",
+  "Organisasi dan Arsitektur komputer",
+  "Teknologi Platform",
+  "Sistem Paralel dan terdistribusi"
+]
+
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<any[]>([])
+  const [allTasks, setAllTasks] = useState<any[]>([]) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<ErrorState | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<any>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
+  
+
+  const [selectedCourse, setSelectedCourse] = useState('Semua Mata Kuliah')
 
 
   async function fetchTasks() {
@@ -39,7 +51,7 @@ export default function TasksPage() {
       }))
 
       if (error) throw error
-      setTasks(data || []) 
+      setAllTasks(data || [])
     } catch (err: any) {
       console.error('Error fetching tasks:', err)
       setError({
@@ -49,13 +61,13 @@ export default function TasksPage() {
       })
     }
   }
-
+  
   useEffect(() => {
     fetchTasks()
   }, [])
 
+
   const handleCreateTask = async (formData: FormData) => {
-    console.log("Submitting new task...", formData)
     setLoading(true)
     setError(null)
     setSuccess(null)
@@ -67,51 +79,62 @@ export default function TasksPage() {
       const title = formData.get('title') as string
       const description = formData.get('description') as string
       const course = formData.get('course') as string
-      const assignee = formData.get('assignee') as string // <-- Anda perlu ID asisten
+      const assignee = formData.get('assignee') as string
       const deadline = formData.get('deadline') as string
       const priority = formData.get('priority') as string
-      const file = formData.get('file') as File
 
-      // TODO: Handle file upload ke Supabase Storage di sini jika ada
-      // let file_url = null
-      // if (file && file.size > 0) {
-      //   const { data: fileData, error: fileError } = await supabase.storage
-      //     .from('task-files') // Ganti 'task-files' dengan nama bucket Anda
-      //     .upload(`${user.id}/${file.name}`, file)
-      //   if (fileError) throw fileError
-      //   file_url = fileData.path
-      // }
 
+      const taskData = {
+        title: title.trim(),
+        description: description.trim(),
+        course: course, 
+        assignee: assignee, 
+        priority: priority, 
+        due_at: deadline || null,
+        status: 'todo', 
+        created_by: user.id,
+      }
+      
+      setDebugInfo((prev: any) => ({ ...prev, creatingTask: taskData }))
 
       const { data, error: insertError } = await supabase
         .from('tasks')
-        .insert({
-          title: title.trim(),
-          description: description.trim(),
-          due_at: deadline || null,
-          status: 'todo', 
-          created_by: user.id,
-        })
+        .insert(taskData)
         .select()
         .single()
 
-      if (insertError) throw insertError
+      if (insertError) {
+        if (insertError.code === '42501') {
+          throw { status: 403, message: 'Permission denied. Check RLS policies on "tasks" table.', details: insertError }
+        }
+        throw insertError
+      }
+
       setSuccess('Tugas berhasil dibuat!')
       setIsModalOpen(false)
-      await fetchTasks() 
+      await fetchTasks()
+      
       setTimeout(() => setSuccess(null), 3000)
 
     } catch (err: any) {
       console.error('❌ Error creating task:', err)
       setError({
         status: err.status || 500,
-        message: err.message || 'Failed to create task',
+        message: err.message || 'Tugas gagal dibuat',
         details: err.details || err
       })
     } finally {
       setLoading(false)
     }
   }
+  
+
+  const filteredTasks = useMemo(() => {
+    if (selectedCourse === 'Semua Mata Kuliah') {
+      return allTasks
+    }
+    return allTasks.filter(task => task.course === selectedCourse)
+  }, [allTasks, selectedCourse])
 
   return (
     <div className="space-y-4">
@@ -128,13 +151,18 @@ export default function TasksPage() {
         </button>
       </div>
       
-
       <div>
-        <select className="px-4 py-2 border border-gray-300 rounded-lg bg-white">
+        <select
+          value={selectedCourse}
+          onChange={(e) => setSelectedCourse(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+        >
           <option>Semua Mata Kuliah</option>
+          {courses.map(course => (
+            <option key={course} value={course}>{course}</option>
+          ))}
         </select>
       </div>
-
 
       {isModalOpen && (
         <NewTaskModal
@@ -143,12 +171,15 @@ export default function TasksPage() {
         />
       )}
 
-
       {error && <ErrorDisplay error={error} onDismiss={() => setError(null)} />}
       {success && <SuccessDisplay message={success} onDismiss={() => setSuccess(null)} />}
       <DebugPanel data={debugInfo} label="Debug Information" />
 
-      <Kanban />
+      <Kanban
+        tasks={filteredTasks}
+        onTaskUpdate={fetchTasks} 
+      />
+      
     </div>
   )
 }
